@@ -1,0 +1,5 @@
+
+<!-- 
+redis-cli -h r-m5etwsowbn58g4pejp.redis.rds.aliyuncs.com -p 6379 -a iloveNewipad3
+
+  redis-cli -h redis-17665.c53.west-us.azure.cloud.redislabs.com -p 17665 --user default --pass 50icRL0ZVXIf3f5cKtwg4UuEYb5NGXvc -->

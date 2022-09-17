@@ -1,9 +1,30 @@
 import Head from "next/head";
 import { Button } from "ui";
 
-export default function Home() {
+import NextLink from "next/link"; // DOES NOT WORK
+import { GetServerSideProps } from "next/types";
+
+
+
+type Posts = {
+  id: number;
+  title: string;
+};
+
+export const getServerSideProps: GetServerSideProps = async () => {
+  const res = await fetch("https://jsonplaceholder.typicode.com/posts");
+  const posts = await res.json();
+  return {
+    props: {
+      posts,
+    },
+  };
+};
+
+
+export default function Home({ posts }: { posts: Posts[] }) {
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center py-2">
+    <div className="bg-white flex min-h-screen flex-col items-center justify-center py-2">
       <Head>
         <title>Docs - Turborepo Example</title>
         <link rel="icon" href="/favicon.ico" />
@@ -16,10 +37,28 @@ export default function Home() {
             Turborepo Example
           </span>{" "}
         </h1>
+        <div style={{ padding: 20 }}>
+          <h1>Posts</h1>
+          <hr />
+          {posts?.map((post) => {
+            return (
+              <div key={post?.id}>
+                <a href={`/posts/${post?.id}`}>
+                  <h2>{post.title}</h2>
+                </a>
+              </div>
+            );
+          })}
+        </div>
+
         <div className="mx-auto mt-5 max-w-xl sm:flex sm:justify-center md:mt-8">
           <Button />
         </div>
+
       </main>
+
+
+
     </div>
   );
 }
