@@ -1,72 +1,77 @@
 import Head from "next/head";
 import { Button } from "ui";
 
-import NextLink from "next/link"; 
+import NextLink from "next/link";
 import { GetServerSideProps, GetServerSidePropsContext, PreviewData } from "next/types";
 
 import redis from '../lib/redis'
 import { ParsedUrlQuery } from "querystring";
+import redisPool from "../lib/redis";
 
 type DataRoot = {
-    liveProduction: string
-    is_prod_a_live: boolean
-    is_prod_b_live: boolean
-    which_prod_is_live: string
-    name: string
-    services: DataService[]
-    ip: string
+  liveProduction: string
+  is_prod_a_live: boolean
+  is_prod_b_live: boolean
+  which_prod_is_live: string
+  name: string
+  services: DataService[]
+  ip: string
 };
 
 type DataService = {
-    serviceName: string
-    envs: DataServiceItem[]
-    latest: DataServiceItem
-    stage: DataServiceItem
-    lt01: DataServiceItem
-    lt: DataServiceItem
-    lt_asm: DataServiceItem
-    prod: DataServiceItem
-    isOnlyProdNoProdAB: boolean
-    proda: DataServiceItem
-    prodb: DataServiceItem
+  serviceName: string
+  envs: DataServiceItem[]
+  latest: DataServiceItem
+  stage: DataServiceItem
+  lt01: DataServiceItem
+  lt: DataServiceItem
+  lt_asm: DataServiceItem
+  prod: DataServiceItem
+  isOnlyProdNoProdAB: boolean
+  proda: DataServiceItem
+  prodb: DataServiceItem
 }
 
 type DataServiceItem = {
-    serviceName: string
-    envName: string
-    versionNum: string
-    podNum: string
-    etcdLink: string
+  serviceName: string
+  envName: string
+  versionNum: string
+  podNum: string
+  etcdLink: string
 }
 
+const get_ip = (context: any): string => {
+  let ip;
+  const { req } = context;
 
+  let x_forward_for = req.headers["x-forwarded-for"] as string
+  if (x_forward_for) {
+
+    if (typeof x_forward_for === 'string' && x_forward_for.length > 0) {
+      ip = x_forward_for.split(',')[0]
+    }
+
+  } else if (req.headers["x-real-ip"]) {
+    ip = req.socket.remoteAddress
+  } else {
+    ip = req.socket.remoteAddress
+  }
+  console.log("ip address is ", ip)
+  return ip
+}
 
 export const getServerSideProps: GetServerSideProps = async (context) => {
+  // await redisPool.init()
+  // const str = await redisPool.get('container')
+  const str = await redis.get('container')
 
-    const str   = await redis.get('container')
-    // console.dir(res)
-    // console.log(res)
-    const data = JSON.parse(str)
-    console.log("services length",data.services.length)
-    
-    let ip;
-    const { req } = context;
+  // console.dir(res)
+  // console.log(res)
+  const data = JSON.parse(str)
 
-    let x_forward_for = req.headers["x-forwarded-for"] as string
-    if ( x_forward_for) {  
+  console.log("services length >>", data.services.length)
 
-      if (typeof x_forward_for === 'string' && x_forward_for.length > 0) { 
-        ip = x_forward_for.split(',')[0]
-      }
-      
-    } else if (req.headers["x-real-ip"]) {
-      ip = req.socket.remoteAddress
-    } else {
-      ip = req.socket.remoteAddress
-    }
-  
-    console.log(ip)
-    data.ip = ip
+  data.ip = get_ip(context)
 
   return {
     props: {
@@ -75,7 +80,7 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
   };
 };
 
-const which_is_sl = (data:DataRoot) => {
+const which_is_sl = (data: DataRoot) => {
   if (data.which_prod_is_live == "B") {
     return "A"
   }
@@ -99,13 +104,71 @@ export default function Home({ data }: { data: DataRoot }) {
         </h1>
 
         <div style={{ padding: 20 }}>
-          <h1>SL: { which_is_sl(data) } Production: { data.which_prod_is_live } </h1>
-          <hr />
-          <h3>
-            ip : { data.ip } 
-          </h3>
+          
+          <div className="pl-9 pr-9 flex items-center text-2xl  space-x-14 gap-0.5">
+            <h1>SL: prod_{which_is_sl(data)} </h1>
+            <h1>Production: prod_{data.which_prod_is_live} </h1>
+            <h1>
+              Your ip address : {data.ip}
+            </h1>
+          </div>
 
-          {data.services?.map((service) => {
+          <hr />
+
+          <div className="pl-9 pr-9 flex items-center text-2xl  space-x-14 gap-0.5">
+           
+          </div>
+
+          <div className="p-8">
+            <table className="table-auto border-x border-b">
+              <thead>
+                <tr>
+                  <th className="border-b border-l border-indigo-700 bg-indigo-700 p-2 text-left font-bold text-white">Service</th>
+                  <th className="border-b border-l border-indigo-700 bg-indigo-700 p-2 text-left font-bold text-white">Latest</th>
+                  <th className="border-b border-l border-indigo-700 bg-indigo-700 p-2 text-left font-bold text-white">Stage</th>
+                  <th className="border-b border-l border-indigo-700 bg-indigo-700 p-2 text-left font-bold text-white">Lt01</th>
+                  <th className="border-b border-l border-indigo-700 bg-indigo-700 p-2 text-left font-bold text-white">ProdA</th>
+                  <th className="border-b border-l border-indigo-700 bg-indigo-700 py-2 px-4 text-left font-bold text-white">ProdB</th>
+                  <th className="border-b border-l border-indigo-700 bg-indigo-700 py-2 px-4 text-left font-bold text-white">Prod</th>
+                </tr>
+              </thead>
+              <tbody>
+
+              {data.services?.map((service) => {
+                  return (
+
+                    <tr className="odd:bg-gray-100 hover:!bg-stone-200">
+                      <td className="border-b border-l p-2 text-left">{service.serviceName}</td>
+                      <td className="border-b border-l p-2 text-left">
+                        
+                        {service.envs['latest'].versionNum}
+
+                        [{service.envs['latest'].podNum}]
+
+                      </td>
+
+                      <td className="border-b border-l p-2 text-left">{service.envs['stage'].versionNum}</td>
+                      {/* <td className="border-b border-l p-2 text-left">{service.envs['stageasm']?.versionNum}</td> */}
+
+                      <td className="border-b border-l p-2 text-left">{service.envs['lt01'].versionNum}</td>
+                      {/* <td className="border-b border-l p-2 text-left">{service.envs['lt01asm']?.versionNum}</td> */}
+
+                      <td className="border-b border-l p-2 text-left">{service.envs['prod'].versionNum}</td>
+                      <td className="border-b border-l p-2 text-left">{service.envs['proda'].versionNum}</td>
+                      <td className="border-b border-l p-2 text-left">{service.envs['prodb'].versionNum}</td>
+
+                    </tr>
+                    
+                  );
+              })}
+
+              </tbody>
+            </table>
+          </div>
+
+
+
+          {/* {data.services?.map((service) => {
             return (
               <div key={service.serviceName}>
                 <h2>{service.serviceName}</h2>
@@ -116,9 +179,9 @@ export default function Home({ data }: { data: DataRoot }) {
               </div>
             );
           })}
+ */}
 
 
-          
           {/* {posts?.map((post) => {
             return (
               <div key={post?.id}>
@@ -130,9 +193,9 @@ export default function Home({ data }: { data: DataRoot }) {
           })} */}
         </div>
 
-        <div className="mx-auto mt-5 max-w-xl sm:flex sm:justify-center md:mt-8">
+        {/* <div className="mx-auto mt-5 max-w-xl sm:flex sm:justify-center md:mt-8">
           <Button />
-        </div>
+        </div> */}
 
       </main>
 
