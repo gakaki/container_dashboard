@@ -98,7 +98,7 @@ export default function Home({ data }: { data: DataRoot }) {
       let filtered_data = data.services.filter( s => s.serviceName.toLowerCase().includes((query) ) )
       setServiceData(filtered_data);
     };
-    if (query.length === 0 || query.length > 2) fetchData();
+    if (query.length === 0 || query.length >=  1) fetchData();
   }, [query]);
 
 
@@ -138,6 +138,7 @@ export default function Home({ data }: { data: DataRoot }) {
           </div>
 
           <div className="p-8">
+              
             <table className="table-auto border-x border-b">
               <thead>
                 <tr>
