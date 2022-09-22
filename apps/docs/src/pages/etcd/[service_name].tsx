@@ -270,7 +270,7 @@ export default function Etcd({ data }: { data:EtcdRoot  }) {
               })}
         </div>
 
-        <ul className="mt-5 items-center w-full  text-gray-900 bg-white rounded-lg border border-gray-200 sm:flex dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+        <ul className="flex w-auto mt-5 items-center  text-gray-900 bg-white rounded-lg border border-gray-200  dark:bg-gray-700 dark:border-gray-600 dark:text-white">
           { data.env_names.map((env_name) => {
                   return (
                     <li className="px-1 pr-3 border-b border-gray-200 sm:border-b-0 sm:border-r dark:border-gray-600">
@@ -299,13 +299,14 @@ export default function Etcd({ data }: { data:EtcdRoot  }) {
                           />
 
                           <label htmlFor={`label_${env_name}`} className="py-3 ml-2 w-full font-bold text-gray-900 dark:text-gray-300">
-                            {env_name}
+                            {env_name.replace("mdx-cs-","").replace("-ali","")}
                           </label>
 
                       </div>
                   </li>  
                   );
               })}
+        
         </ul>
 
         <div className="flex pt-5 font-mono text-sm gap-1">
