@@ -143,16 +143,7 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
   data.env_names  = Object.keys(data.envEtcdMap),
   data.columns    = columns
   data.columns_equal = {}
-  const all_equal             = array => array.every( el => el === array[0] )
-  for ( let column_name of data.columns ){
-    let column_values: string[] = []
-    for ( let env_name of data.env_names ){
-        let v = data.envEtcdMap[env_name].map_kv[column_name]
-        // console.log(column_name,v)
-        column_values.push(v)
-    }
-    data.columns_equal[column_name] =  all_equal(column_values)
-  }
+  
   
   return {
     props: {
@@ -165,6 +156,73 @@ export default function Etcd({ data }: { data:EtcdRoot  }) {
   
   console.log("columns equal",Object.keys(data.columns_equal),data.columns_equal,data.columns_equal["PROFILER_CONTROLLER_SSL_ENABLED"])
   
+  // const [ chooseEnvs, setChooseEnvs ] = useState<string[]>()
+
+  // Hook
+  function useLocalStorage<T>(key: string, initialValue: T) {
+    // State to store our value
+    // Pass initial state function to useState so logic is only executed once
+    const [storedValue, setStoredValue] = useState<T>(() => {
+      if (typeof window === "undefined") {
+        return initialValue;
+      }
+      try {
+        // Get from local storage by key
+        const item = window.localStorage.getItem(key);
+        // Parse stored json or if none return initialValue
+        return item ? JSON.parse(item) : initialValue;
+      } catch (error) {
+        // If error also return initialValue
+        console.log(error);
+        return initialValue;
+      }
+    });
+    // Return a wrapped version of useState's setter function that ...
+    // ... persists the new value to localStorage.
+    const setValue = (value: T | ((val: T) => T)) => {
+      try {
+        // Allow value to be a function so we have same API as useState
+        const valueToStore =
+          value instanceof Function ? value(storedValue) : value;
+        // Save state
+        setStoredValue(valueToStore);
+        // Save to local storage
+        if (typeof window !== "undefined") {
+          window.localStorage.setItem(key, JSON.stringify(valueToStore));
+        }
+      } catch (error) {
+        // A more advanced implementation would handle the error case
+        console.log(error);
+      }
+    };
+    return [storedValue, setValue] as const;
+  }
+
+  const [chooseEnvs, setChooseEnvs] = useLocalStorage<string[]>("env_names", data.env_names);
+
+
+  // useEffect(() => {
+  //   console.log('chooseEnvs', Array.from(new Set(chooseEnvs)));
+  // }, [chooseEnvs])
+ 
+  const all_equal             = array => array.every( el => el === array[0] )
+  
+  const GetColumnsEqual = ( env_names:string[] ) => {
+    let o = new Object()
+    for ( let column_name of data.columns ){
+      let column_values: string[] = []
+      for ( let env_name of env_names ){
+          let v = data.envEtcdMap[env_name].map_kv[column_name]
+          // console.log(column_name,v)
+          column_values.push(v)
+      }
+      o[column_name] =  all_equal(column_values)
+    }
+    return o
+  }
+  
+  data.columns_equal = GetColumnsEqual( chooseEnvs )
+
   // make router to server query id
   // const router = useRouter()
   // const { service_name } = router.query
@@ -177,22 +235,80 @@ export default function Etcd({ data }: { data:EtcdRoot  }) {
   //   if (query.length === 0 || query.length > 2) fetchData();
   // }, [query]);
 
+ 
+
+
+  const GetEqualClassName = (column:string) => {
+    return data.columns_equal[column] ? "":  "bg-orange-100" 
+  }
+
   return (
 
     <div className="bg-white py-2">
-
+      
       <Head>
         <title>SHDR Container Status</title>
         <link rel="icon" href="/favicon.ico" />
       </Head>
 
-      <main className="mx-auto w-auto px-4 pt-16 pb-8 sm:pt-24 lg:px-8">
-        <div className="flex space-x-4">
-            <Link target="_blank" href={`https://keyblade.shdrapps.disney.com/keys/sh1/application/${data.name}`}>{data.name}</Link>
+      <main className="mx-auto w-auto px-4 pt-5 pb-8 lg:px-8">
+
+        <h1 className="flex space-x-4 text-blue-500 text-3xl font-extrabold">
+            <Link target="_blank" href={`https://keyblade.shdrapps.disney.com/keys/sh1/application/${data.name}`}>
+              {data.name}
+            </Link>
+        </h1>
+
+        <div style={{display: 'none' }} >
+          {Array.from(new Set(chooseEnvs)).map((env,index) => {
+                  return (
+                    <div className="flex h-10 truncate border items-center pl-2">
+                      {env} {index}
+                      {/* { data.columns_equal[column].toString()} */}
+                    </div>
+                  );
+              })}
         </div>
 
-        <hr />
-        <div className="flex">
+        <ul className="mt-5 items-center w-full  text-gray-900 bg-white rounded-lg border border-gray-200 sm:flex dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+          { data.env_names.map((env_name) => {
+                  return (
+                    <li className="px-1 pr-3 border-b border-gray-200 sm:border-b-0 sm:border-r dark:border-gray-600">
+                      <div className="flex items-center pl-3">
+
+                          <input 
+                            id={`label_${env_name}`} type="checkbox" value={env_name} className="w-4 h-4 text-blue-600 bg-gray-100 rounded border-gray-300 focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-700 focus:ring-2 dark:bg-gray-600 dark:border-gray-500" 
+                            
+                            checked={ chooseEnvs.indexOf( env_name ) >=0  }
+
+                            onChange={  (e) => { 
+
+                              console.log("change checked",e.target.checked,e.target.value)
+                              
+                              let s = new Set(chooseEnvs)
+                              Array.from(chooseEnvs)
+                              if (e.target.checked === true){
+                                s.add( e.target.value )
+                              }else{
+                                s.delete( e.target.value )
+                              }
+                              
+                              setChooseEnvs( Array.from(s) )
+
+                          }}
+                          />
+
+                          <label htmlFor={`label_${env_name}`} className="py-3 ml-2 w-full font-bold text-gray-900 dark:text-gray-300">
+                            {env_name}
+                          </label>
+
+                      </div>
+                  </li>  
+                  );
+              })}
+        </ul>
+
+        <div className="flex pt-5 font-mono text-sm gap-1">
             {/* <div>
               {Object.keys(data.columns_equal).map((key,index) => {
                   return (
@@ -203,16 +319,14 @@ export default function Etcd({ data }: { data:EtcdRoot  }) {
                 })}
             </div> */}
 
-
             <hr />
 
-            <div className="w-72 overflow-x-scroll">
-              
+            <div className="w-126 overflow-x-scroll border">
               {/* column table  table column title need a column */}
-              <div className="h-10"> column / env_name </div>
+              <div className="h-10 flex items-center pl-2">Column/Env_Name</div>
               {data.columns?.map((column) => {
                   return (
-                    <div className="h-10">
+                    <div className={"flex h-10 truncate border items-center pl-2 " + GetEqualClassName(column)}>
                       {column}
                       {/* { data.columns_equal[column].toString()} */}
                     </div>
@@ -220,27 +334,30 @@ export default function Etcd({ data }: { data:EtcdRoot  }) {
               })}
             </div>
             
-            {/* for earch all envs */}
-            {data.env_names?.map((env_name) => {
-                  return (
-                    <div className="w-72 overflow-x-scroll">
-                    {/* column table  table column title need a column */}
-                    <div className="h-10"> { env_name } </div>
-                    { data.columns?.map((column) => {
-                      return (
-                        <div className="h-10">
-                          {/* { data.columns_equal[column].toString()} */}
-                          {data.envEtcdMap[env_name].map_kv[column] }
-                        </div>
-                      );
-                    })}
-                  </div>
-                  );
-            })}
-
-
-
+            
+             
+              {chooseEnvs.map((env_name) => {
+                    return (
+                      <div className="w-72 overflow-x-scroll border">
+                      {/* column table  table column title need a column */}
+                      <div className="h-10 border flex items-center justify-center	"> 
+                      {/* { env_name.replace("mdx-cs-","").replace("-ali","") }  */}
+                      { env_name } 
+                      </div>
+                      { data.columns?.map((column) => {
+                        return (
+                          <div className={"h-10 border flex items-center pl-1 " + GetEqualClassName(column)}>
+                            {/* { data.columns_equal[column].toString()} */}
+                            {data.envEtcdMap[env_name].map_kv[column] }
+                          </div>
+                        );
+                      })}
+                    </div>
+                    );
+              })}
         </div>
+
+
       </main>
 
     </div>
@@ -248,3 +365,7 @@ export default function Etcd({ data }: { data:EtcdRoot  }) {
   )
 
 }
+function all_equal(column_values: string[]): any {
+  throw new Error("Function not implemented.");
+}
+
